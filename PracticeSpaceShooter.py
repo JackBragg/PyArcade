@@ -254,6 +254,13 @@ class MyGame(arcade.Window):
         # draw all the sprites
         self.all_sprites_list.draw()
 
+        # Put the text on the screen.
+        output = f"Score: {self.score}"
+        arcade.draw_text(output, 10, 70, arcade.color.WHITE, 13)
+
+        output = f"Asteroid Count: {len(self.asteroid_list)}"
+        arcade.draw_text(output, 10, 50, arcade.color.WHITE, 13)
+
     def on_key_press(self, symbol, modifiers):
         '''
         called on key press
@@ -306,13 +313,153 @@ class MyGame(arcade.Window):
             self.player_sprite.change_angle = 0
         elif symbol == arcade.key.D:
             self.player_sprite.change_angle = 0
-        # TODO: Pull thrust from ship class
         elif symbol == arcade.key.W:
             self.player_sprite.thrust = 0
-        # TODO: Pull reverse thrust from ship class
         elif symbol == arcade.key.S:
             self.player_sprite.thrust = 0
-        
+
+    def split_asteroid(self, asteroid: AsteroidSprite):
+        '''
+        Split an asteroid into chunks
+        Deletion of original asteroid is handled elsewhere
+        '''
+        # sets spawn coords and increments score
+        x = asteroid.center_x
+        y = asteroid.center_y
+        self.score += 1
+
+        if asteroid.size == 4:
+            # splits into range(3) (so three) smaller asteroids
+            # TODO: pull pieces from class 
+            for i in range(3):
+                image_no = random.randrange(2)
+                image_list = [":resources:images/space_shooter/meteorGrey_med1.png",
+                              ":resources:images/space_shooter/meteorGrey_med2.png"]
+                
+                enemy_sprite = AsteroidSprite(image_list[image_no], SCALE * 1.5)
+
+                # spawn coords
+                enemy_sprite.center_x = x
+                enemy_sprite.center_y = y
+
+                # randomizes velocity
+                enemy_sprite.change_x = random.random() * 2.5 - 1.25
+                enemy_sprite.change_y = random.random() * 2.5 - 1.25
+
+                # sets vector for new asteroids
+                enemy_sprite.change_angle = (random.random() - 0.5) * 2
+                enemy_sprite.size = 3
+
+                # adds new asteroid "pieces" to related lists
+                self.all_sprites_list.append(enemy_sprite)
+                self.asteroid_list.append(enemy_sprite)
+                self.hit_sound1.play()
+
+
+        elif asteroid.size == 3:
+            # splits into range(3) (so three) smaller asteroids
+            # TODO: pull pieces from class 
+            for i in range(3):
+                image_no = random.randrange(2)
+                image_list = [":resources:images/space_shooter/meteorGrey_small1.png",
+                              ":resources:images/space_shooter/meteorGrey_small2.png"]
+                
+                enemy_sprite = AsteroidSprite(image_list[image_no], SCALE * 1.5)
+
+                # spawn coords
+                enemy_sprite.center_x = x
+                enemy_sprite.center_y = y
+
+                # randomizes velocity
+                enemy_sprite.change_x = random.random() * 3 - 1.5
+                enemy_sprite.change_y = random.random() * 3 - 1.5
+
+                # sets vector for new asteroids
+                enemy_sprite.change_angle = (random.random() - 0.5) * 2
+                enemy_sprite.size = 2
+
+                # adds new asteroid "pieces" to related lists
+                self.all_sprites_list.append(enemy_sprite)
+                self.asteroid_list.append(enemy_sprite)
+                self.hit_sound2.play()
+
+
+        elif asteroid.size == 3:
+            # splits into range(3) (so three) smaller asteroids
+            # TODO: pull pieces from class 
+            for i in range(3):
+                image_no = random.randrange(2)
+                image_list = [":resources:images/space_shooter/meteorGrey_tiny1.png",
+                              ":resources:images/space_shooter/meteorGrey_tiny2.png"]
+                
+                enemy_sprite = AsteroidSprite(image_list[image_no], SCALE * 1.5)
+
+                # spawn coords
+                enemy_sprite.center_x = x
+                enemy_sprite.center_y = y
+
+                # randomizes velocity
+                enemy_sprite.change_x = random.random() * 3.5 - 1.75
+                enemy_sprite.change_y = random.random() * 3.5 - 1.75
+
+                # sets vector for new asteroids
+                enemy_sprite.change_angle = (random.random() - 0.5) * 2
+                enemy_sprite.size = 1
+
+                # adds new asteroid "pieces" to related lists
+                self.all_sprites_list.append(enemy_sprite)
+                self.asteroid_list.append(enemy_sprite)
+                self.hit_sound3.play()
+
+
+        elif asteroid.size == 1:
+            self.hit_sound4.play()
+
+    def on_update(self, x):
+        '''
+        move all the things
+        '''
+        self.frame_count += 1
+
+        if not self.game_over:
+            # here is why the ShipSprite class needs update()
+            # so that it can be called while nested within the list
+            self.all_sprites_list.update()       
+
+            # checks for collisions between bullets and asteroids
+            for bullet in self.bullet_list:
+                asteroids_plain = arcade.check_for_collision_with_list(bullet, self.asteroid_list)
+                asteroids_spatial = arcade.check_for_collision_with_list(bullet, self.asteroid_list)
+                if len(asteroids_plain) != len(asteroids_spatial):
+                    print('error')
+
+                asteroids = asteroids_spatial
+
+                for asteroid in asteroids:
+                    # creates new smaller asteroids
+                    self.split_asteroid(cast(AsteroidSprite, asteroid))
+                    # deletes original asteroid and bullet (collide with bullet)
+                    asteroid.remove_from_sprite_lists()
+                    bullet.remove_from_sprite_lists()
+
+            if not self.player_sprite.respawning:
+                # same as for bullets but with player instead
+                asteroids = arcade.check_for_collision_with_list(self.player_sprite, self.asteroid_list)
+                # if there is an asteroid collision then asteroids is at least 1
+                if len(asteroids) > 0:
+                    # number of lives check
+                    if self.lives > 0:
+                        self.lives -= 1
+                        self.player_sprite.respawn()
+                        # asteroids[0] refers to the first asteroid in case several collide at once
+                        self.split_asteroid(cast(AsteroidSprite, asteroids[0]))
+                        asteroids[0].remove_from_sprite_lists()
+                        self.ship_life_list.pop().remove_from_sprite_lists()
+                        print("Crash")
+                    else:
+                        self.game_over = True
+                        print("Game over")
+
 
 
 
